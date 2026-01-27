@@ -123,9 +123,7 @@ def init_routes(app):
         
         return render_template('profile.html', user=user, latest_profile=latest_profile)
     
-        @app.route('/profile', methods=['POST'])
-    
-    
+    @app.route('/profile', methods=['POST'])
     @login_required
     def upload_profile():
         """Handle profile upload (CV PDF and optional audio brain dump)"""
