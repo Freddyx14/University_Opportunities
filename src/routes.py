@@ -95,6 +95,11 @@ def init_routes(app):
         """Log out the current user"""
         logout_user()
         return redirect(url_for('login'))
+        
+    @app.route('/confirmacion-exitosa')
+    def confirmacion_exitosa():
+        """Public route for successful account confirmation"""
+        return render_template('confirmacion_auth.html')
     
     # =====================
     # Protected Routes
