@@ -14,77 +14,61 @@ supabase: Client = create_client(
 )
 
 
-# Inside src/services/hunter.py
-
-def search_opportunities_with_perplexity(profile_data, num_results=3):
+def search_opportunities_with_perplexity(cv_raw_text, brain_dump_text="", profile_data=None, num_results=3):
     """
-    Uses Perplexity to find real opportunities (internships, fellowships, programs, research positions, etc.) based on profile.
+    Uses Perplexity to find real opportunities based on the FULL raw CV text
+    and optional brain dump context. This approach sends complete student info
+    instead of extracted variables for more accurate results.
+    
+    Args:
+        cv_raw_text: Full text extracted from the student's CV
+        brain_dump_text: Additional context written by the student
+        profile_data: Structured profile data (used only for basic metadata fallback)
+        num_results: Number of opportunities to find
     """
-    print("🔎 Asking Perplexity to search for opportunities...")
+    print("🔎 Asking Perplexity to search for opportunities (full-text mode)...")
     
-    # Extract enriched profile data
-    name = profile_data.get('name', 'Estudiante')
-    university = profile_data.get('university', '')
-    career = profile_data.get('career', '')
-    study_level = profile_data.get('study_level', 'pregrado')
-    country = profile_data.get('country', 'Latinoamérica')
-    languages = profile_data.get('languages', ['Español'])
-    skills = profile_data.get('top_skills', [])
-    interests = profile_data.get('interests', [])
-    ambitions = profile_data.get('ambitions', '')
-    preferred_types = profile_data.get('preferred_opportunity_types', ['becas', 'pasantías'])
-    availability = profile_data.get('availability', 'flexible')
+    # Use profile_data only for basic metadata if raw text is missing
+    if not cv_raw_text and profile_data:
+        # Fallback: build context from profile_data like before
+        cv_raw_text = f"""Nombre: {profile_data.get('name', 'Estudiante')}
+Universidad: {profile_data.get('university', 'No especificada')}
+Carrera: {profile_data.get('career', 'No especificada')}
+Nivel: {profile_data.get('study_level', 'pregrado')}
+País: {profile_data.get('country', 'No especificado')}
+Idiomas: {', '.join(profile_data.get('languages', ['Español']))}
+Habilidades: {', '.join(profile_data.get('top_skills', []))}
+Intereses: {', '.join(profile_data.get('interests', []))}
+Ambiciones: {profile_data.get('ambitions', 'No especificadas')}"""
     
-    # Build comprehensive student context
-    student_context = f"Estudiante de {career if career else 'universidad'}" if career else "Estudiante universitario"
-    if study_level:
-        student_context += f" ({study_level})"
-    if country and country != 'No especificado':
-        student_context += f" en {country}"
+    # Build the full student context from raw texts
+    student_full_context = f"=== CV COMPLETO DEL ESTUDIANTE ===\n{cv_raw_text}"
     
-    # Build interests and skills string
-    interest_text = ", ".join(interests[:4]) if interests else ""
-    skills_text = ", ".join(skills[:3]) if skills else ""
-    preferred_types_text = ", ".join(preferred_types[:3]) if preferred_types else "becas, pasantías"
-    languages_text = ", ".join(languages[:2]) if languages else "Español"
+    if brain_dump_text and brain_dump_text.strip():
+        student_full_context += f"\n\n=== CONTEXTO ADICIONAL DEL ESTUDIANTE (escrito por él/ella) ===\n{brain_dump_text.strip()}"
     
-    # Build rich search query
-    search_parts = []
-    if ambitions:
-        search_parts.append(f"Ambiciones: {ambitions}")
-    if interest_text:
-        search_parts.append(f"Intereses: {interest_text}")
-    if skills_text:
-        search_parts.append(f"Habilidades: {skills_text}")
-    
-    search_query = f"{student_context}. {' '.join(search_parts)}. Busca: {preferred_types_text}. Idiomas: {languages_text}."
+    # Truncate if too long for API (keep under ~12000 chars for the student context)
+    if len(student_full_context) > 12000:
+        student_full_context = student_full_context[:12000] + "\n[...texto truncado por longitud]"
     
     url = "https://api.perplexity.ai/chat/completions"
     
-    # Build detailed system prompt with student context
     system_prompt = f"""Eres un buscador experto de oportunidades educativas y profesionales para estudiantes universitarios.
 
-PERFIL DEL ESTUDIANTE:
-- Contexto: {student_context}
-- Carrera: {career if career else 'No especificada'}
-- Nivel: {study_level}
-- País: {country}
-- Idiomas: {languages_text}
-- Habilidades: {skills_text if skills_text else 'No especificadas'}
-- Intereses: {interest_text if interest_text else 'No especificados'}
-- Ambiciones: {ambitions if ambitions else 'No especificadas'}
-- Tipos de oportunidades preferidas: {preferred_types_text}
-- Disponibilidad: {availability}
+A continuación tienes el CV COMPLETO de un estudiante y contexto adicional que él/ella proporcionó. Usa TODA esta información para encontrar las oportunidades más relevantes.
+
+{student_full_context}
 
 TU TAREA:
-1. Busca {num_results} oportunidades REALES, ACTUALES y VERIFICABLES que existan en 2025-2026
-2. Prioriza oportunidades que:
-   - Sean ELEGIBLES para el nivel de estudios del estudiante ({study_level})
-   - Estén disponibles para estudiantes de {country} o sean internacionales
-   - Coincidan con sus intereses y carrera
-   - Se alineen con sus ambiciones profesionales
-3. Incluye variedad: becas, pasantías, programas de investigación, intercambios, concursos, etc.
-4. SOLO incluye oportunidades con requisitos que el estudiante PODRÍA cumplir
+1. Analiza profundamente el perfil completo del estudiante (su experiencia, educación, habilidades, idiomas, país, nivel de estudios, intereses y ambiciones)
+2. Busca {num_results} oportunidades REALES, ACTUALES y VERIFICABLES que existan en 2025-2026
+3. Prioriza oportunidades que:
+   - Sean ELEGIBLES para el nivel de estudios y país del estudiante
+   - Se alineen con su experiencia, carrera e intereses
+   - Coincidan con sus ambiciones y metas profesionales
+   - Aprovechen sus idiomas y habilidades únicas
+4. Incluye variedad: becas, pasantías, programas de investigación, intercambios, concursos, fellowships, etc.
+5. SOLO incluye oportunidades con requisitos que el estudiante PODRÍA cumplir basándote en su CV completo
 
 FORMATO DE RESPUESTA:
 Devuelve SOLO un array JSON válido, sin texto adicional:
@@ -110,7 +94,7 @@ Devuelve SOLO un array JSON válido, sin texto adicional:
             },
             {
                 "role": "user",
-                "content": f"Encuentra {num_results} oportunidades específicas y actuales para este estudiante. Prioriza calidad sobre cantidad y asegúrate de que sean elegibles para su perfil."
+                "content": f"Basándote en el CV completo y el contexto del estudiante, encuentra {num_results} oportunidades específicas, actuales y verificables. Prioriza calidad y relevancia real para este perfil específico."
             }
         ]
     }
@@ -124,11 +108,9 @@ Devuelve SOLO un array JSON válido, sin texto adicional:
         response = requests.post(url, json=payload, headers=headers)
         response.raise_for_status()
         
-        # DEBUG: Print what Perplexity actually sent back
         raw_content = response.json()['choices'][0]['message']['content']
-        print(f"📝 Raw Perplexity Response: {raw_content[:200]}...") # Print first 200 chars
+        print(f"📝 Raw Perplexity Response: {raw_content[:200]}...")
         
-        # Clean up code blocks if Perplexity adds them (```json ... ```)
         clean_content = raw_content.replace("```json", "").replace("```", "").strip()
         
         return json.loads(clean_content)
@@ -139,34 +121,34 @@ Devuelve SOLO un array JSON válido, sin texto adicional:
         return []
 
 
-def evaluate_match(student_profile, opportunity):
+def evaluate_match(cv_raw_text, brain_dump_text, opportunity, profile_data=None):
     """
-    Uses Gemini to evaluate how well a student profile matches an opportunity.
+    Uses Gemini to evaluate how well a student matches an opportunity.
+    Uses the FULL CV text + brain dump for more accurate evaluation.
+    
     Returns a dict with 'score' (0-100), 'reason' (string), and 'is_eligible' (boolean).
-    Uses weighted criteria for more accurate scoring.
     """
-    # Extract student context for better evaluation
-    study_level = student_profile.get('study_level', 'pregrado')
-    country = student_profile.get('country', 'No especificado')
-    career = student_profile.get('career', 'No especificada')
+    # Build student context from raw texts
+    student_context = f"CV COMPLETO:\n{cv_raw_text[:6000]}"  # Truncate for Gemini context
+    if brain_dump_text and brain_dump_text.strip():
+        student_context += f"\n\nCONTEXTO ADICIONAL DEL ESTUDIANTE:\n{brain_dump_text.strip()[:2000]}"
     
     prompt = f"""Eres un asesor académico experto. Evalúa si este estudiante es un BUEN CANDIDATO para esta oportunidad.
 
-PERFIL DEL ESTUDIANTE:
-{json.dumps(student_profile, ensure_ascii=False, indent=2)}
+{student_context}
 
 OPORTUNIDAD:
 {json.dumps(opportunity, ensure_ascii=False, indent=2)}
 
 EVALÚA CON ESTOS CRITERIOS PONDERADOS:
 1. ELEGIBILIDAD (40%): ¿El estudiante cumple los requisitos básicos?
-   - ¿Su nivel de estudios ({study_level}) es compatible con la oportunidad?
-   - ¿Su país ({country}) es elegible o la oportunidad es internacional?
-   - ¿Su carrera ({career}) es relevante para la oportunidad?
+   - ¿Su nivel de estudios es compatible con la oportunidad?
+   - ¿Su país es elegible o la oportunidad es internacional?
+   - ¿Su carrera/experiencia es relevante?
    
 2. ALINEACIÓN DE INTERESES (30%): ¿Los intereses y ambiciones del estudiante coinciden con el enfoque de la oportunidad?
 
-3. HABILIDADES (20%): ¿Las habilidades del estudiante son relevantes para la oportunidad?
+3. HABILIDADES (20%): ¿Las habilidades y experiencia del estudiante son relevantes?
 
 4. POTENCIAL DE IMPACTO (10%): ¿Esta oportunidad ayudaría significativamente al desarrollo profesional del estudiante?
 
@@ -186,24 +168,19 @@ Devuelve un JSON con:
         response = gemini_model.generate_content(prompt)
         response_text = response.text.strip()
         
-        # Try to extract JSON from markdown code blocks if present
         if "```json" in response_text:
             response_text = response_text.split("```json")[1].split("```")[0].strip()
         elif "```" in response_text:
             response_text = response_text.split("```")[1].split("```")[0].strip()
         
-        # Parse the JSON response
         result = json.loads(response_text)
         
-        # Validate the response has required fields
         if 'score' not in result:
             return {"score": 0, "reason": "Invalid response format from AI", "description": "", "is_eligible": False}
         
-        # Ensure score is an integer between 0 and 100
         score = int(result['score'])
         score = max(0, min(100, score))
         
-        # Get eligibility status (default to True for backwards compatibility)
         is_eligible = result.get('is_eligible', True)
         
         return {
@@ -226,10 +203,11 @@ Devuelve un JSON con:
 
 def find_and_save_matches(student_id, num_results=3):
     """
-    Main logic: Fetches student, gets opportunities, scores them, and saves matches.
+    Main logic: Fetches student (including raw texts), gets opportunities using
+    full CV text, scores them, and saves matches.
     """
     try:
-        # 1. Fetch the student row
+        # 1. Fetch the student row (now including cv_raw_text and brain_dump_text)
         response = supabase.table("students").select("*").eq("id", student_id).execute()
         
         if not response.data or len(response.data) == 0:
@@ -238,31 +216,35 @@ def find_and_save_matches(student_id, num_results=3):
         
         student_row = response.data[0]
         
-        # 2. Extract the Profile Data (Safe Parsing)
-        # The skills are inside the 'profile_data' column, not the top-level row
-        profile_data = student_row.get('profile_data', {})
+        # 2. Extract raw texts for search and evaluation
+        cv_raw_text = student_row.get('cv_raw_text', '') or ''
+        brain_dump_text = student_row.get('brain_dump_text', '') or ''
         
-        # If Supabase returned it as a string, parse it into a Dict
+        # 3. Also get profile_data as fallback
+        profile_data = student_row.get('profile_data', {})
         if isinstance(profile_data, str):
             try:
                 profile_data = json.loads(profile_data)
-                print("Parsed profile_data from string.")
             except:
                 profile_data = {}
 
         print(f"Processing matches for student: {student_row.get('name', 'Unknown')}")
+        print(f"CV text length: {len(cv_raw_text)} chars | Brain dump: {'Yes' if brain_dump_text else 'No'}")
 
-        # 3. Search using the Dictionary (Fixes the error!)
-        # We pass the full profile_data dict so the function can find 'top_skills'
-        opportunities = search_opportunities_with_perplexity(profile_data, num_results=num_results)
+        # 4. Search using FULL raw texts (the key change!)
+        opportunities = search_opportunities_with_perplexity(
+            cv_raw_text=cv_raw_text,
+            brain_dump_text=brain_dump_text,
+            profile_data=profile_data,
+            num_results=num_results
+        )
         
         print(f"Found {len(opportunities)} opportunities to evaluate")
         
         matches_saved = 0
         
-        # 4. Evaluate and Save
+        # 5. Evaluate and Save using full texts
         for opportunity in opportunities:
-            # Validate opportunity is a dictionary
             if not isinstance(opportunity, dict):
                 print(f"Skipping invalid opportunity: {opportunity}")
                 continue
@@ -270,24 +252,20 @@ def find_and_save_matches(student_id, num_results=3):
             title = opportunity.get('title', 'Unknown Position')
             print(f"\nEvaluating: {title}")
             
-            # Score with Gemini (now includes eligibility check)
-            evaluation = evaluate_match(profile_data, opportunity)
+            # Score with Gemini using full CV text
+            evaluation = evaluate_match(cv_raw_text, brain_dump_text, opportunity, profile_data)
             score = evaluation['score']
             reason = evaluation['reason']
             description = evaluation.get('description', '')
             is_eligible = evaluation.get('is_eligible', True)
             eligibility_notes = evaluation.get('eligibility_notes', '')
             
-            # Get additional opportunity metadata if available
-            opportunity_type = opportunity.get('opportunity_type', 'oportunidad')
             deadline_info = opportunity.get('deadline_info', '')
             
             print(f"Score: {score}/100 | Eligible: {is_eligible} - {reason}")
             
-            # New threshold: Must be eligible AND score >= 50 (more inclusive but accurate)
             if is_eligible and score >= 50:
                 try:
-                    # Build rich match reason with all available info
                     full_reason_parts = []
                     if description:
                         full_reason_parts.append(description)

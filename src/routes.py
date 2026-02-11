@@ -203,7 +203,8 @@ def init_routes(app):
             user = get_current_user()
             
             # Analyze profile with either audio or text brain dump
-            result = analyze_profile(cv_path, audio_path, brain_dump_text)
+            # Returns (profile_dict, cv_raw_text) tuple
+            result, cv_raw_text = analyze_profile(cv_path, audio_path, brain_dump_text)
             
             # Clean up temporary files immediately after processing
             try:
@@ -214,8 +215,13 @@ def init_routes(app):
             except Exception as cleanup_error:
                 print(f"Warning: Failed to cleanup temp files: {cleanup_error}")
 
-            # Persist result to Supabase with user_id
-            saved_row = save_student_profile(result, user_id=user['id'] if user else None)
+            # Persist result to Supabase with user_id + raw texts
+            saved_row = save_student_profile(
+                result, 
+                user_id=user['id'] if user else None,
+                cv_raw_text=cv_raw_text,
+                brain_dump_text=brain_dump_text or ""
+            )
             session["student_row"] = saved_row
             
             # Store result in session for results page
@@ -408,7 +414,8 @@ def init_routes(app):
             else:
                 # Verificar límite diario (1 búsqueda)
                 if last_search_str:
-                     last_date = datetime.fromisoformat(last_search_str.replace('Z', '+00:00')).date()
+                     from dateutil.parser import parse as parse_date
+                     last_date = parse_date(last_search_str).date()
                      today = datetime.now(timezone.utc).date()
                      
                      if last_date == today:

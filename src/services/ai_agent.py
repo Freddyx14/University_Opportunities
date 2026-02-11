@@ -36,6 +36,66 @@ class GeminiAgent:
         
         print("Gemini client initialized successfully")
     
+    def extract_cv_text(self, cv_file_path):
+        """
+        Extract raw text from a PDF CV using Gemini.
+        
+        Args:
+            cv_file_path: Path to the uploaded PDF CV
+            
+        Returns:
+            str: Raw text content of the CV
+        """
+        try:
+            with open(cv_file_path, "rb") as f:
+                cv_bytes = f.read()
+            
+            cv_part = types.Part.from_bytes(data=cv_bytes, mime_type="application/pdf")
+            
+            prompt = """Extrae TODO el texto de este documento PDF tal cual está escrito. 
+No resumas, no interpretes, no cambies nada. Solo devuelve el texto plano completo del documento.
+No agregues comentarios ni formato adicional."""
+            
+            response = self.client.models.generate_content(
+                model=self.model_name,
+                contents=[cv_part, prompt],
+            )
+            
+            return (response.text or "").strip()
+        except Exception as e:
+            print(f"Error extracting CV text: {e}")
+            return ""
+
+    def extract_cv_text(self, cv_file_path):
+        """
+        Extract raw text from a PDF CV using Gemini.
+        
+        Args:
+            cv_file_path: Path to the uploaded PDF CV
+            
+        Returns:
+            str: Raw text content of the CV
+        """
+        try:
+            with open(cv_file_path, "rb") as f:
+                cv_bytes = f.read()
+            
+            cv_part = types.Part.from_bytes(data=cv_bytes, mime_type="application/pdf")
+            
+            prompt = """Extrae TODO el texto de este documento PDF tal cual está escrito. 
+No resumas, no interpretes, no cambies nada. Solo devuelve el texto plano completo del documento.
+No agregues comentarios ni formato adicional."""
+            
+            response = self.client.models.generate_content(
+                model=self.model_name,
+                contents=[cv_part, prompt],
+            )
+            
+            return (response.text or "").strip()
+        except Exception as e:
+            print(f"Error extracting CV text: {e}")
+            return ""
+
     def analyze_profile(self, cv_file_path, audio_file_path=None, brain_dump_text=None):
         """
         Analyze CV and optional audio brain dump OR text brain dump using Gemini Flash Lite
@@ -188,7 +248,8 @@ Del CV, extrae información detallada sobre el estudiante. Infiere sus ambicione
 
 def analyze_profile(cv_file_path, audio_file_path=None, brain_dump_text=None):
     """
-    Convenience function to analyze profile using Gemini agent
+    Convenience function to analyze profile using Gemini agent.
+    Also extracts raw CV text for use in opportunity searches.
     
     Args:
         cv_file_path: Path to the uploaded PDF CV
@@ -196,7 +257,16 @@ def analyze_profile(cv_file_path, audio_file_path=None, brain_dump_text=None):
         brain_dump_text: Text brain dump written by the user, optional
     
     Returns:
-        dict: Analysis results with enriched profile schema
+        tuple: (profile_dict, cv_raw_text)
+            - profile_dict: Analysis results with enriched profile schema
+            - cv_raw_text: Raw text extracted from CV
     """
     agent = GeminiAgent()
-    return agent.analyze_profile(cv_file_path, audio_file_path, brain_dump_text)
+    
+    # Extract raw CV text for Perplexity searches
+    cv_raw_text = agent.extract_cv_text(cv_file_path)
+    
+    # Analyze profile for summary display
+    profile = agent.analyze_profile(cv_file_path, audio_file_path, brain_dump_text)
+    
+    return profile, cv_raw_text

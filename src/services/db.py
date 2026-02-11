@@ -40,12 +40,14 @@ def get_client() -> Client:
     return _client
 
 
-def save_student_profile(ai_result_json: Dict[str, Any], user_id: Optional[str] = None) -> Dict[str, Any]:
+def save_student_profile(ai_result_json: Dict[str, Any], user_id: Optional[str] = None, cv_raw_text: str = "", brain_dump_text: str = "") -> Dict[str, Any]:
     """
     Inserts a row into `students` table:
       - name: ai_result_json["name"]
       - profile_data: full ai_result_json (jsonb)
       - user_id: UUID of authenticated user (REQUIRED after migration)
+      - cv_raw_text: Raw text extracted from CV PDF
+      - brain_dump_text: Raw text from user's brain dump input
 
     Returns the inserted row (as dict) when available.
     """
@@ -57,7 +59,9 @@ def save_student_profile(ai_result_json: Dict[str, Any], user_id: Optional[str] 
     payload = {
         "name": name,
         "profile_data": ai_result_json,
-        "user_id": user_id
+        "user_id": user_id,
+        "cv_raw_text": cv_raw_text or "",
+        "brain_dump_text": brain_dump_text or ""
     }
 
     # Insert and return inserted row

@@ -80,15 +80,15 @@
         </div>
 
         <!-- Matches Grid -->
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
             {% for match in matches %}
             <div class="novo-card stagger-item bg-white rounded-2xl shadow-lg shadow-gray-100 overflow-hidden group">
                 <!-- Card Header with gradient accent -->
                 <div class="h-2 bg-gradient-to-r {% if match.match_score > 80 %}from-emerald-400 to-teal-500{% elif match.match_score > 50 %}from-amber-400 to-orange-500{% else %}from-gray-300 to-gray-400{% endif %}"></div>
                 
-                <div class="p-6">
+                <div class="p-6 md:p-8">
                     <!-- Match Score Badge -->
-                    <div class="flex items-center justify-between mb-4">
+                    <div class="flex items-center justify-between mb-5">
                         {% if match.match_score > 80 %}
                         <span class="novo-pill bg-emerald-50 text-emerald-700 border border-emerald-100">
                             <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
@@ -109,7 +109,6 @@
                         </span>
                         {% endif %}
                         
-                        <!-- Urgency badge (example) -->
                         {% if loop.index <= 2 %}
                         <span class="urgency-badge novo-pill bg-orange-50 text-orange-600 border border-orange-100 text-xs">
                             🔥 Hot
@@ -118,30 +117,45 @@
                     </div>
 
                     <!-- Opportunity Title -->
-                    <h2 class="text-xl font-bold text-novo-text mb-2 group-hover:text-novo-primary transition-colors line-clamp-2">
+                    <h2 class="text-xl font-bold text-novo-text mb-2 group-hover:text-novo-primary transition-colors">
                         {{ match.title }}
                     </h2>
                     
-                    <!-- Organization -->
-                    <p class="text-novo-text-light font-medium mb-3">{{ match.company }}</p>
-                    
-                    <!-- Location -->
-                    {% if match.location %}
-                    <div class="flex items-center text-novo-text-light mb-4">
-                        <svg class="w-4 h-4 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
-                        </svg>
-                        <span class="text-sm truncate">{{ match.location }}</span>
+                    <!-- Organization & Location -->
+                    <div class="flex flex-wrap items-center gap-4 mb-5 text-novo-text-light">
+                        <p class="font-medium">{{ match.company }}</p>
+                        {% if match.location %}
+                        <div class="flex items-center gap-1.5">
+                            <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+                            </svg>
+                            <span class="text-sm">{{ match.location }}</span>
+                        </div>
+                        {% endif %}
                     </div>
-                    {% endif %}
                     
-                    <!-- Match Reason -->
+                    <!-- Match Reason - Properly formatted sections -->
                     {% if match.match_reason %}
-                    <div class="bg-gradient-to-br from-indigo-50/50 to-purple-50/50 rounded-xl p-4 mb-6 border border-indigo-100/50">
-                        <p class="text-novo-text-light text-sm leading-relaxed italic">
-                            "{{ match.match_reason }}"
-                        </p>
+                    <div class="bg-gradient-to-br from-slate-50 to-gray-50 rounded-xl p-5 mb-6 border border-gray-100 space-y-3">
+                        {% for section in match.match_reason.split('\n\n') %}
+                        {% if section.strip() %}
+                        <div class="flex items-start gap-2">
+                            {% if '📅' in section %}
+                            <span class="flex-shrink-0 mt-0.5">📅</span>
+                            <p class="text-sm text-novo-text-light leading-relaxed">{{ section.replace('📅 ', '') }}</p>
+                            {% elif '💡' in section %}
+                            <span class="flex-shrink-0 mt-0.5">💡</span>
+                            <p class="text-sm text-novo-text leading-relaxed">{{ section.replace('💡 Match: ', '').replace('💡 ', '') }}</p>
+                            {% elif '✅' in section %}
+                            <span class="flex-shrink-0 mt-0.5">✅</span>
+                            <p class="text-sm text-emerald-700 leading-relaxed">{{ section.replace('✅ Elegibilidad: ', '').replace('✅ ', '') }}</p>
+                            {% else %}
+                            <p class="text-sm text-novo-text leading-relaxed">{{ section }}</p>
+                            {% endif %}
+                        </div>
+                        {% endif %}
+                        {% endfor %}
                     </div>
                     {% endif %}
                     
