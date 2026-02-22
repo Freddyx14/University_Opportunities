@@ -23,7 +23,48 @@
             justify-content: center;
             padding: 20px;
             position: relative;
-            overflow: hidden;
+            overflow-x: hidden;
+            overflow-y: auto;
+        }
+
+        /* Mobile responsive */
+        @media (max-height: 700px), (max-width: 480px) {
+            body {
+                align-items: flex-start;
+                padding: 16px;
+            }
+
+            .auth-container {
+                padding: 32px 24px !important;
+                margin: auto;
+            }
+
+            .logo {
+                margin-bottom: 24px !important;
+            }
+
+            .logo-icon {
+                width: 48px !important;
+                height: 48px !important;
+                font-size: 22px !important;
+                margin-bottom: 12px !important;
+            }
+
+            .logo h1 {
+                font-size: 1.5rem !important;
+            }
+
+            .form-group {
+                margin-bottom: 16px !important;
+            }
+
+            .form-group input {
+                padding: 12px 14px !important;
+            }
+
+            .btn-primary {
+                padding: 14px !important;
+            }
         }
 
         /* Animated background elements */

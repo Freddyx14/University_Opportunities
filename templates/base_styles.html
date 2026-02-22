@@ -193,6 +193,16 @@ tailwind.config = {
         -webkit-backdrop-filter: blur(8px);
     }
 
+    /* Mobile responsive adjustments */
+    @media (max-width: 640px) {
+        .novo-navbar .container {
+            padding-left: 1rem;
+            padding-right: 1rem;
+            padding-top: 0.75rem;
+            padding-bottom: 0.75rem;
+        }
+    }
+
     /* Staggered animation for lists */
     .stagger-item {
         opacity: 0;
