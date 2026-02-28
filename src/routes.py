@@ -352,6 +352,7 @@ def init_routes(app):
         
         # Calcular búsquedas del día para mostrar al usuario
         searches_today = 0
+        search_limit = 20
         if student_id:
             from datetime import datetime, timezone
             today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
@@ -360,11 +361,15 @@ def init_routes(app):
             searches_result = supabase.table("matches").select("id", count="exact").eq("student_id", student_id).gte("created_at", today_start).execute()
             searches_today = searches_result.count if searches_result.count else 0
         
+        # Calcular porcentaje para la barra de progreso (evita división por cero)
+        progress_percentage = (searches_today / search_limit * 100) if search_limit > 0 else 0
+        
         return render_template('upgrade.html', 
                              user=user, 
                              student_id=student_id,
                              searches_today=searches_today,
-                             search_limit=20)
+                             search_limit=search_limit,
+                             progress_percentage=progress_percentage)
 
     @app.route('/checkout', methods=['POST', 'GET'])
     @app.route('/checkout/<student_id>', methods=['POST', 'GET'])
