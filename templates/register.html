@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Registro - Novo</title>
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='images/logo-novo.svg') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/logo-novo.svg') }}">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -25,6 +27,59 @@
             position: relative;
             overflow-x: hidden;
             overflow-y: auto;
+        }
+
+        /* Mobile responsive */
+        @media (max-height: 700px), (max-width: 480px) {
+            body {
+                align-items: flex-start;
+                padding: 16px;
+            }
+
+            .auth-container {
+                padding: 28px 20px !important;
+                margin: auto;
+            }
+
+            .logo {
+                margin-bottom: 20px !important;
+            }
+
+            .logo-icon {
+                width: 48px !important;
+                height: 48px !important;
+                font-size: 22px !important;
+                margin-bottom: 10px !important;
+            }
+
+            .logo h1 {
+                font-size: 1.4rem !important;
+            }
+
+            .logo p {
+                font-size: 0.85rem !important;
+            }
+
+            .benefits {
+                padding: 12px !important;
+                margin-bottom: 16px !important;
+            }
+
+            .benefits li {
+                font-size: 0.8rem !important;
+            }
+
+            .form-group {
+                margin-bottom: 14px !important;
+            }
+
+            .form-group input {
+                padding: 12px 14px !important;
+            }
+
+            .btn-primary {
+                padding: 14px !important;
+            }
         }
 
         .bg-gradient {
@@ -302,7 +357,7 @@
 
     <div class="auth-container">
         <div class="logo">
-            <div class="logo-icon">🚀</div>
+            <img src="{{ url_for('static', filename='images/logo-novo.svg') }}" alt="Novo" class="logo-icon" style="object-fit: contain;">
             <h1>Únete a Novo</h1>
             <p>El mundo es tuyo. Novo te ayuda a encontrarlo.</p>
         </div>

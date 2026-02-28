@@ -17,25 +17,23 @@
     <nav class="novo-navbar fixed top-0 left-0 right-0 z-50 border-b border-gray-100">
         <div class="container mx-auto px-6 py-4 flex justify-between items-center">
             <a href="/" class="flex items-center gap-3 group">
-                <div class="w-10 h-10 bg-gradient-to-br from-novo-primary to-purple-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-200 group-hover:scale-110 transition-transform">
-                    <span class="text-white font-bold text-lg">N</span>
-                </div>
+                <img src="{{ url_for('static', filename='images/logo-novo.svg') }}" alt="Novo" class="w-10 h-10 rounded-xl shadow-lg shadow-indigo-200 group-hover:scale-110 transition-transform">
                 <span class="text-2xl font-bold novo-gradient-text">Novo</span>
             </a>
             {% if user %}
-            <div class="flex items-center gap-4">
+            <div class="flex items-center gap-2 sm:gap-4">
                 {% include 'components/upgrade_badge.html' %}
-                <a href="{{ url_for('my_profiles') }}" class="text-novo-text-light hover:text-novo-primary transition-colors font-medium">
+                <a href="{{ url_for('my_profiles') }}" class="text-novo-text-light hover:text-novo-primary transition-colors font-medium hidden sm:block">
                     Mis Análisis
                 </a>
-                <div class="flex items-center gap-3">
+                <div class="flex items-center gap-2 sm:gap-3">
                     <div class="w-8 h-8 bg-gradient-to-br from-novo-primary to-purple-500 rounded-full flex items-center justify-center text-white text-sm font-semibold">
                         {{ user.name[0]|upper }}
                     </div>
                     <span class="text-novo-text font-medium hidden sm:block">{{ user.name }}</span>
                 </div>
-                <a href="{{ url_for('logout') }}" class="px-4 py-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors font-medium">
-                    Cerrar Sesión
+                <a href="{{ url_for('logout') }}" class="px-3 py-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors font-medium text-sm sm:text-base sm:px-4">
+                    Salir
                 </a>
             </div>
             {% endif %}
