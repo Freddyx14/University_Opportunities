@@ -1,4 +1,4 @@
-# 🔄 Flujo Completo del Proyecto - Novo
+# 🔄 Diagrama de Flujo Completo del Proyecto - Novo
 
 ## 📊 Diagrama del Proceso
 
