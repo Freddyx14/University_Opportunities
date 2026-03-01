@@ -33,22 +33,29 @@ def test_1_gemini_connection():
     separator("TEST 1: Gemini Connection")
     
     try:
-        import google.generativeai as genai
-        api_key = os.getenv("GEMINI_API_KEY")
+        from google import genai
+        from google.genai import types
+        
+        api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
         
         if not api_key:
             print("❌ GEMINI_API_KEY no encontrado en .env")
             return False
         
-        genai.configure(api_key=api_key)
-        model = genai.GenerativeModel("gemini-flash-lite-latest")
+        # Initialize client
+        client = genai.Client(api_key=api_key)
+        model_name = "gemini-2.5-flash"
         
         # Quick test
-        response = model.generate_content("Responde solo con: OK")
+        response = client.models.generate_content(
+            model=model_name,
+            contents="Responde solo con: OK"
+        )
         
-        if "OK" in response.text:
+        if response.text and "OK" in response.text:
             print("✅ Gemini conectado y funcionando")
             print(f"   API Key: {api_key[:10]}...{api_key[-10:]}")
+            print(f"   Model: {model_name}")
             return True
         else:
             print(f"⚠️ Respuesta inesperada: {response.text}")
@@ -68,11 +75,11 @@ def test_2_supabase_connection():
         
         supabase = _get_supabase_client()
         
-        # Intenta hacer una query simple
-        response = supabase.table("students").select("COUNT"). execute()
+        # Intenta hacer una query simple (solo trae 1 row para verificar conexión)
+        response = supabase.table("students").select("id").limit(1).execute()
         
         print("✅ Supabase conectado")
-        print(f"   Connection: {supabase.url[:30]}...")
+        print(f"   Tabla 'students' accesible: ✓")
         return True
         
     except Exception as e:
@@ -133,7 +140,7 @@ def test_4_profile_analysis():
     separator("TEST 4: Profile Analysis")
     
     try:
-        from src.services.ai_agent import GeminiAgent
+        from src.services.ai_agent import analyze_profile
         
         # Usar CV sample del test anterior
         test_pdf = Path("tests/sample_cv.pdf")
@@ -141,10 +148,8 @@ def test_4_profile_analysis():
             print("❌ Primero ejecuta TEST 3 para crear el sample CV")
             return None
         
-        agent = GeminiAgent()
-        
         print("🔄 Analizando perfil...")
-        profile_dict, cv_raw_text = agent.analyze_profile(
+        profile_dict, cv_raw_text = analyze_profile(
             cv_file_path=str(test_pdf),
             audio_file_path=None,
             brain_dump_text="Interesado en becas de IA en Europa"
@@ -171,49 +176,58 @@ def test_4_profile_analysis():
         return None
 
 
+# Shared test data for Tests 5 & 6
+TEST_CV_DATA = """
+Name: John Doe
+Degree: Engineering - Computer Science
+University: PUCP (Pontificia Universidad Católica del Perú)
+Country: Peru
+GPA: 3.8/4.0
+
+Skills:
+- Python (Advanced)
+- JavaScript/React (Intermediate)
+- SQL (Advanced)
+- Machine Learning (Intermediate)
+
+Experience:
+- Software Developer Intern (6 months)
+- Research Assistant in AI lab
+
+Languages: Spanish (Native), English (Fluent)
+
+Interests: Artificial Intelligence, Web Development, Startups
+Ambitions: Work at a top tech company in Silicon Valley or Europe
+"""
+
+TEST_BRAIN_DUMP = "Quiero una beca o pasantía en Europa o USA para aprender más sobre IA"
+
+# Global variable to store opportunities from TEST 5 for use in TEST 6
+test_opportunities = None
+
+
 def test_5_opportunity_search():
     """TEST 5: ¿Genera bien las oportunidades?"""
     separator("TEST 5: Opportunity Search")
     
+    global test_opportunities
+    
     try:
         from src.services.hunter import search_opportunities_with_gemini
         
-        # Datos de prueba
-        cv_raw_text = """
-        Name: John Doe
-        Degree: Engineering - Computer Science
-        University: PUCP (Pontificia Universidad Católica del Perú)
-        Country: Peru
-        GPA: 3.8/4.0
-        
-        Skills:
-        - Python (Advanced)
-        - JavaScript/React (Intermediate)
-        - SQL (Advanced)
-        - Machine Learning (Intermediate)
-        
-        Experience:
-        - Software Developer Intern (6 months)
-        - Research Assistant in AI lab
-        
-        Languages: Spanish (Native), English (Fluent)
-        
-        Interests: Artificial Intelligence, Web Development, Startups
-        Ambitions: Work at a top tech company in Silicon Valley or Europe
-        """
-        
-        brain_dump_text = "Quiero una beca o pasantía en Europa o USA para aprender más sobre IA"
-        
         print("🔄 Buscando oportunidades...")
-        print(f"   CV length: {len(cv_raw_text)} chars")
-        print(f"   Brain dump: '{brain_dump_text[:50]}...'")
+        print(f"   CV length: {len(TEST_CV_DATA)} chars")
+        print(f"   Brain dump: '{TEST_BRAIN_DUMP[:50]}...'")
         
         opportunities = search_opportunities_with_gemini(
-            cv_raw_text=cv_raw_text,
-            brain_dump_text=brain_dump_text,
+            cv_raw_text=TEST_CV_DATA,
+            brain_dump_text=TEST_BRAIN_DUMP,
             profile_data=None,
             num_results=3
         )
+        
+        # Store for TEST 6
+        test_opportunities = opportunities
         
         print(f"✅ Se encontraron {len(opportunities)} oportunidades\n")
         
@@ -239,55 +253,37 @@ def test_6_opportunity_scoring():
     """TEST 6: ¿Puntúa bien las oportunidades?"""
     separator("TEST 6: Opportunity Scoring")
     
+    global test_opportunities
+    
     try:
         from src.services.hunter import evaluate_match
         
-        cv_raw_text = """
-        Engineer with Python expertise
-        Skills: Python, Django, React, PostgreSQL
-        Languages: Spanish, English
-        Interests: AI, Startups
-        """
+        # TEST 6 requiere que TEST 5 se haya ejecutado exitosamente
+        if test_opportunities is None or len(test_opportunities) == 0:
+            print("❌ TEST 6 requiere que TEST 5 se ejecute primero")
+            print("   No hay oportunidades para evaluar.")
+            print("   Por favor ejecuta TEST 5 antes de TEST 6.\n")
+            return None
         
-        opportunities = [
-            {
-                "title": "AI Research Intern",
-                "company": "Google AI",
-                "description": "ML research opportunity for undergrads",
-                "opportunity_type": "pasantía",
-                "eligibility_level": "pregrado"
-            },
-            {
-                "title": "PhD Program in Philosophy",
-                "company": "Harvard",
-                "description": "Doctoral program in philosophy",
-                "opportunity_type": "doctorate",
-                "eligibility_level": "doctorado"
-            },
-            {
-                "title": "Web Developer Bootcamp",
-                "company": "Coding School",
-                "description": "Learn React in 12 weeks",
-                "opportunity_type": "training",
-                "eligibility_level": "all"
-            }
-        ]
+        opportunities = test_opportunities
+        
+        print(f"✅ Usando {len(opportunities)} oportunidades de TEST 5")
         
         print("🔄 Evaluando matches...\n")
         
         scores = []
         for opp in opportunities:
             evaluation = evaluate_match(
-                cv_raw_text=cv_raw_text,
-                brain_dump_text="Interested in AI roles",
+                cv_raw_text=TEST_CV_DATA,
+                brain_dump_text=TEST_BRAIN_DUMP,
                 opportunity=opp,
                 profile_data={}
             )
             
-            title = opp['title']
+            title = opp.get('title', 'Unknown')
             score = evaluation['score']
-            reason = evaluation['reason'][:60]
-            eligible = "✓" if evaluation['is_eligible'] else "✗"
+            reason = evaluation['reason'][:70] if evaluation.get('reason') else "N/A"
+            eligible = "✓" if evaluation.get('is_eligible', False) else "✗"
             
             print(f"[{eligible}] {title}")
             print(f"    Score: {score}/100")
@@ -296,9 +292,13 @@ def test_6_opportunity_scoring():
             
             scores.append(score)
         
-        print(f"✅ Scoring completado")
-        print(f"   Scores: {scores}")
-        print(f"   Promedio: {sum(scores)/len(scores):.1f}/100")
+        if scores:
+            avg_score = sum(scores) / len(scores)
+            print(f"✅ Scoring completado")
+            print(f"   Scores: {scores}")
+            print(f"   Promedio: {avg_score:.1f}/100")
+        else:
+            print(f"❌ No se pudieron evaluar las oportunidades")
         
         return True
         
@@ -316,7 +316,33 @@ def test_7_database_save():
     try:
         from src.services.db import save_student_profile, _get_supabase_client
         
-        # Datos de prueba
+        supabase = _get_supabase_client()
+        
+        # Use demo account credentials (isolated from personal account)
+        # Credentials should be in .env file (never hardcode in source)
+        DEMO_EMAIL = os.getenv("DEMO_EMAIL", "demo@novo.app")
+        DEMO_PASSWORD = os.getenv("DEMO_PASSWORD", "")
+        
+        print("👤 Usando cuenta demo para testing...")
+        print(f"   Email: {DEMO_EMAIL}")
+        print(f"   ℹ️ Completamente aislado de tu cuenta personal\n")
+        
+        try:
+            # Login with demo account to get user_id
+            auth_response = supabase.auth.sign_in_with_password({
+                "email": DEMO_EMAIL,
+                "password": DEMO_PASSWORD
+            })
+            
+            test_user_id = auth_response.user.id
+            print(f"✓ Autenticado como demo: {test_user_id}")
+            
+        except Exception as auth_error:
+            print(f"❌ Error en login: {auth_error}")
+            print(f"   Verifica que la cuenta demo exista: {DEMO_EMAIL}")
+            return None
+        
+        # Now save student profile with demo user
         profile_dict = {
             "name": "Test Student",
             "university": "Test University",
@@ -332,11 +358,11 @@ def test_7_database_save():
         cv_raw_text = "This is test CV text with some content to verify storage" * 10
         brain_dump_text = "This is test brain dump"
         
-        print("💾 Guardando en base de datos...")
+        print("\n💾 Guardando student profile...")
         
         saved_row = save_student_profile(
-            profile=profile_dict,
-            user_id=None,  # Sin user para test
+            ai_result_json=profile_dict,
+            user_id=test_user_id,
             cv_raw_text=cv_raw_text,
             brain_dump_text=brain_dump_text
         )
@@ -356,6 +382,23 @@ def test_7_database_save():
             
             if verify.data and len(verify.data) > 0:
                 print(f"✅ Recuperada 1 row de la DB")
+                
+                # Optional cleanup
+                print(f"\n🧹 Limpieza opcional")
+                cleanup = input("   ¿Eliminar student profile de test? (s/n): ").strip().lower()
+                
+                if cleanup == 's':
+                    try:
+                        # Delete student profile only (keep user in auth.users)
+                        supabase.table("students").delete().eq("id", student_id).execute()
+                        print("   ✓ Student profile eliminado")
+                        print(f"   ℹ️ Usuario en auth.users permanece intacto")
+                    except Exception as e:
+                        print(f"   ⚠️ Error en cleanup: {e}")
+                else:
+                    print(f"   ℹ️ Student profile permanece en DB")
+                    print(f"   ℹ️ Puedes usar student_id={student_id} para TEST 8")
+                
                 return student_id
             else:
                 print(f"❌ No se pudo recuperar de la DB")
@@ -379,18 +422,42 @@ def test_8_full_pipeline():
         from src.services.hunter import find_and_save_matches
         from src.services.db import _get_supabase_client
         
-        # Primero necesitamos un student_id
-        print("⚠️ Este test requiere un student_id existente en la DB")
-        print("   Ejecuta primero TEST 7 para tener un student_id\n")
+        supabase = _get_supabase_client()
         
-        # Aquí el usuario debe proporcionar el student_id
-        student_id = input("Ingresa el student_id (o presiona Enter para saltar): ").strip()
+        # Demo account credentials (same as TEST 7)
+        # Credentials should be in .env file (never hardcode in source)
+        DEMO_EMAIL = os.getenv("DEMO_EMAIL", "demo@novo.app")
+        DEMO_PASSWORD = os.getenv("DEMO_PASSWORD", "")
         
-        if not student_id:
-            print("⏭️ Test saltado")
+        print("🔍 Buscando último student_id de la cuenta demo...")
+        
+        # Login with demo account
+        try:
+            auth_response = supabase.auth.sign_in_with_password({
+                "email": DEMO_EMAIL,
+                "password": DEMO_PASSWORD
+            })
+            demo_user_id = auth_response.user.id
+        except Exception as e:
+            print(f"❌ Error autenticando demo account: {e}")
             return None
         
-        print(f"\n🔄 ejecutando pipeline para student_id: {student_id}")
+        # Get latest student profile for demo user
+        students = supabase.table("students").select("*").eq("user_id", demo_user_id).order("created_at", desc=True).limit(1).execute()
+        
+        if not students.data or len(students.data) == 0:
+            print(f"❌ No hay student profiles para la cuenta demo")
+            print(f"   Ejecuta TEST 7 primero para crear un student_id")
+            return None
+        
+        student_id = students.data[0]['id']
+        student_name = students.data[0]['name']
+        
+        print(f"✓ Encontrado: {student_id}")
+        print(f"   Nome: {student_name}")
+        print(f"   User: {demo_user_id}\n")
+        
+        print(f"🔄 Ejecutando pipeline para student_id: {student_id}")
         
         result = find_and_save_matches(student_id=student_id, num_results=3)
         
@@ -404,14 +471,16 @@ def test_8_full_pipeline():
         print(f"   Matches guardados: {result.get('matches_saved', 0)}")
         
         # Verificar matches en DB
-        supabase = _get_supabase_client()
         matches = supabase.table("matches").select("*").eq("student_id", student_id).execute()
         
-        print(f"\n📊 Matches en la base de datos:")
-        for i, match in enumerate(matches.data, 1):
-            opp = match.get('opportunity', {})
-            score = match.get('score', 0)
-            print(f"   {i}. {opp.get('title', 'N/A')} - {score}/100")
+        if matches.data:
+            print(f"\n📊 Matches en la base de datos:")
+            for i, match in enumerate(matches.data, 1):
+                opp = match.get('opportunity', {})
+                score = match.get('score', 0)
+                print(f"   {i}. {opp.get('title', 'N/A')} - {score}/100")
+        else:
+            print(f"\n⚠️ No hay matches guardados para este student")
         
         return True
         
