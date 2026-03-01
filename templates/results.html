@@ -155,13 +155,19 @@
         <!-- Actions -->
         <div class="flex flex-col sm:flex-row justify-center gap-4 animate-fade-in" style="animation-delay: 0.4s;">
             {% if student_row and student_row.id %}
-            <a href="{{ url_for('run_hunter', student_id=student_row.id) }}" 
-               class="novo-btn flex items-center justify-center gap-2 px-8 py-4 bg-gradient-to-r from-novo-success to-emerald-600 text-white rounded-xl font-semibold shadow-lg shadow-emerald-200 hover:shadow-xl">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <button onclick="startSearch('{{ url_for('run_hunter', student_id=student_row.id) }}')" 
+                    id="searchBtn"
+                    class="novo-btn flex items-center justify-center gap-2 px-8 py-4 bg-gradient-to-r from-novo-success to-emerald-600 text-white rounded-xl font-semibold shadow-lg shadow-emerald-200 hover:shadow-xl transition-all">
+                <svg class="w-5 h-5" id="searchIcon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
                 </svg>
-                Buscar Oportunidades
-            </a>
+                <!-- Spinner (hidden by default) -->
+                <svg class="w-5 h-5 animate-spin hidden" id="searchSpinner" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span id="searchText">Buscar Oportunidades</span>
+            </button>
             {% endif %}
             <a href="{{ url_for('my_profiles') }}" 
                class="novo-btn flex items-center justify-center gap-2 px-8 py-4 bg-white text-novo-primary border-2 border-novo-primary rounded-xl font-semibold hover:bg-indigo-50">
@@ -186,5 +192,29 @@
             </div>
         </div>
     </div>
+
+    <script>
+        function startSearch(url) {
+            // Obtener elementos
+            const btn = document.getElementById('searchBtn');
+            const icon = document.getElementById('searchIcon');
+            const spinner = document.getElementById('searchSpinner');
+            const text = document.getElementById('searchText');
+            
+            // Deshabilitar botón
+            btn.disabled = true;
+            btn.classList.add('opacity-75', 'cursor-not-allowed');
+            
+            // Ocultar icono, mostrar spinner
+            icon.classList.add('hidden');
+            spinner.classList.remove('hidden');
+            
+            // Cambiar texto
+            text.textContent = 'Buscando oportunidades...';
+            
+            // Redireccionar
+            window.location.href = url;
+        }
+    </script>
 </body>
 </html>

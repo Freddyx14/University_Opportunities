@@ -48,7 +48,32 @@
 
         <!-- Edit Form Card -->
         <div class="novo-card bg-white rounded-3xl shadow-xl shadow-gray-200/50 p-8 animate-slide-up" style="animation-delay: 0.1s;">
-            <form method="POST" action="{{ url_for('edit_profile', student_id=profile.id) }}" class="space-y-8">
+            <form method="POST" action="{{ url_for('edit_profile', student_id=profile.id) }}" enctype="multipart/form-data" class="space-y-8">
+                
+                <!-- Upload New CV Section (Optional) -->
+                <div class="space-y-3 pb-6 border-b border-gray-100">
+                    <label class="flex items-center gap-2 text-novo-text font-semibold text-lg">
+                        <span class="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
+                            <svg class="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                            </svg>
+                        </span>
+                        Actualizar CV (Opcional)
+                    </label>
+                    <p class="text-novo-text-light text-sm ml-10">Si tienes un CV actualizado, súbbelo para mejorar tu perfil</p>
+                    <div class="ml-10">
+                        <input type="file" id="cv_file" name="cv_file" accept=".pdf"
+                               class="block w-full text-sm text-novo-text-light
+                                      file:mr-4 file:py-3 file:px-6
+                                      file:rounded-xl file:border-0
+                                      file:text-sm file:font-semibold
+                                      file:bg-indigo-50 file:text-novo-primary
+                                      hover:file:bg-indigo-100 file:cursor-pointer
+                                      cursor-pointer">
+                        <p class="text-xs text-novo-text-light mt-2">Solo archivos PDF. Máximo 10MB.</p>
+                    </div>
+                </div>
+
                 <!-- Skills Section -->
                 <div class="space-y-3">
                     <label for="top_skills" class="flex items-center gap-2 text-novo-text font-semibold text-lg">
@@ -88,11 +113,17 @@
                         Cancelar
                     </a>
                     <button type="submit" 
-                            class="novo-btn px-8 py-4 bg-gradient-to-r from-novo-primary to-indigo-600 text-white rounded-xl font-bold shadow-lg shadow-indigo-200 hover:shadow-xl flex items-center justify-center gap-2">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            id="submitBtn"
+                            class="novo-btn px-8 py-4 bg-gradient-to-r from-novo-primary to-indigo-600 text-white rounded-xl font-bold shadow-lg shadow-indigo-200 hover:shadow-xl flex items-center justify-center gap-2 transition-all">
+                        <svg class="w-5 h-5" id="submitIcon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
                         </svg>
-                        Guardar Cambios
+                        <!-- Spinner (hidden by default) -->
+                        <svg class="w-5 h-5 animate-spin hidden" id="submitSpinner" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <span id="submitText">Guardar Cambios</span>
                     </button>
                 </div>
             </form>
@@ -105,5 +136,31 @@
             </p>
         </div>
     </div>
+
+    <script>
+        // Manejar submit con spinner
+        document.querySelector('form').addEventListener('submit', function(e) {
+            const btn = document.getElementById('submitBtn');
+            const icon = document.getElementById('submitIcon');
+            const spinner = document.getElementById('submitSpinner');
+            const text = document.getElementById('submitText');
+            const cvFile = document.getElementById('cv_file');
+            
+            // Si hay un CV subido, mostrar mensaje de procesamiento
+            if (cvFile.files.length > 0) {
+                text.textContent = 'Procesando CV...';
+            } else {
+                text.textContent = 'Guardando...';
+            }
+            
+            // Deshabilitar botón
+            btn.disabled = true;
+            btn.classList.add('opacity-75', 'cursor-not-allowed');
+            
+            // Ocultar icono, mostrar spinner
+            icon.classList.add('hidden');
+            spinner.classList.remove('hidden');
+        });
+    </script>
 </body>
 </html>

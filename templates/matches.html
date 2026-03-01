@@ -69,11 +69,19 @@
             <p class="text-novo-text-light">
                 <span class="font-bold text-novo-text text-xl">{{ matches|length }}</span> oportunidades encontradas
             </p>
-            <div class="flex items-center gap-2 text-sm text-novo-text-light">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                </svg>
-                Ordenado por relevancia
+            <div class="flex items-center gap-4">
+                <div class="flex items-center gap-2 text-sm text-novo-text-light">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    Ordenado por relevancia
+                </div>
+                <button onclick="confirmClearHistory('{{ student_id }}')" class="ml-4 px-4 py-2 text-red-600 hover:bg-red-50 border border-red-200 rounded-lg transition-colors font-medium text-sm flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                    </svg>
+                    Borrar Historial
+                </button>
             </div>
         </div>
 
@@ -191,24 +199,36 @@
                 Estamos encontrando las mejores oportunidades para ti. Esto puede tomar unos segundos...
             </p>
             {% if student_id %}
-            <a href="{{ url_for('run_hunter', student_id=student_id) }}" 
-               class="novo-btn inline-flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-novo-success to-emerald-600 text-white rounded-xl font-semibold shadow-lg shadow-emerald-200 hover:shadow-xl">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <button onclick="startSearch('{{ url_for('run_hunter', student_id=student_id) }}')" 
+                    id="searchBtn1"
+                    class="novo-btn inline-flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-novo-success to-emerald-600 text-white rounded-xl font-semibold shadow-lg shadow-emerald-200 hover:shadow-xl transition-all">
+                <svg class="w-5 h-5" id="searchIcon1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
                 </svg>
-                Buscar Oportunidades
-            </a>
+                <svg class="w-5 h-5 animate-spin hidden" id="searchSpinner1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span id="searchText1">Buscar Oportunidades</span>
+            </button>
             {% endif %}
         </div>
         {% endif %}
 
         <!-- Actions -->
         <div class="flex flex-col sm:flex-row justify-center gap-4 animate-fade-in" style="animation-delay: 0.5s;">
-            <a href="{{ url_for('run_hunter', student_id=student_id) }}" 
-               class="novo-btn flex items-center justify-center gap-2 px-8 py-4 bg-gradient-to-r from-novo-success to-emerald-600 text-white rounded-xl font-bold shadow-lg shadow-emerald-200 hover:shadow-xl hover:scale-[1.02] transition-all">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <button onclick="startSearch('{{ url_for('run_hunter', student_id=student_id) }}')" 
+                    id="searchBtn2"
+                    class="novo-btn flex items-center justify-center gap-2 px-8 py-4 bg-gradient-to-r from-novo-success to-emerald-600 text-white rounded-xl font-bold shadow-lg shadow-emerald-200 hover:shadow-xl hover:scale-[1.02] transition-all">
+                <svg class="w-5 h-5" id="searchIcon2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
                 </svg>
+                <svg class="w-5 h-5 animate-spin hidden" id="searchSpinner2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span id="searchText2">Buscar Oportunidades</span>
+            </button>
                 Buscar Más Oportunidades
             </a>
             <a href="{{ url_for('profile') }}" 
@@ -241,5 +261,45 @@
             </div>
         </div>
     </div>
+
+    <script>
+        function startSearch(url) {
+            // Detectar cuál botón fue clickeado
+            const btnId = event.target.closest('button').id;
+            const btn = document.getElementById(btnId);
+            const iconId = btnId === 'searchBtn1' ? 'searchIcon1' : 'searchIcon2';
+            const spinnerId = btnId === 'searchBtn1' ? 'searchSpinner1' : 'searchSpinner2';
+            const textId = btnId === 'searchBtn1' ? 'searchText1' : 'searchText2';
+            
+            const icon = document.getElementById(iconId);
+            const spinner = document.getElementById(spinnerId);
+            const text = document.getElementById(textId);
+            
+            // Deshabilitar botón
+            btn.disabled = true;
+            btn.classList.add('opacity-75', 'cursor-not-allowed');
+            
+            // Ocultar icono, mostrar spinner
+            icon.classList.add('hidden');
+            spinner.classList.remove('hidden');
+            
+            // Cambiar texto
+            text.textContent = 'Buscando oportunidades...';
+            
+            // Redireccionar
+            window.location.href = url;
+        }
+
+        function confirmClearHistory(studentId) {
+            if (confirm('¿Estás seguro de que deseas eliminar TODO el historial de oportunidades? Esta acción no se puede deshacer.')) {
+                // Crear formulario y enviar
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = '/matches/clear/' + studentId;
+                document.body.appendChild(form);
+                form.submit();
+            }
+        }
+    </script>
 </body>
 </html>

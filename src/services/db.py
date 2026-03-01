@@ -40,7 +40,7 @@ def get_client() -> Client:
     return _client
 
 
-def save_student_profile(ai_result_json: Dict[str, Any], user_id: Optional[str] = None, cv_raw_text: str = "", brain_dump_text: str = "") -> Dict[str, Any]:
+def save_student_profile(ai_result_json: Dict[str, Any], user_id: Optional[str] = None, cv_raw_text: str = "", brain_dump_text: str = "", cv_file_path: str = "") -> Dict[str, Any]:
     """
     Inserts a row into `students` table:
       - name: ai_result_json["name"]
@@ -48,6 +48,7 @@ def save_student_profile(ai_result_json: Dict[str, Any], user_id: Optional[str] 
       - user_id: UUID of authenticated user (REQUIRED after migration)
       - cv_raw_text: Raw text extracted from CV PDF
       - brain_dump_text: Raw text from user's brain dump input
+      - cv_file_path: Path to the stored PDF file (optional, stored in profile_data)
 
     Returns the inserted row (as dict) when available.
     """
@@ -55,6 +56,10 @@ def save_student_profile(ai_result_json: Dict[str, Any], user_id: Optional[str] 
 
     if not user_id:
         raise ValueError("user_id is required to save a student profile")
+
+    # Add cv_file_path to profile_data if provided
+    if cv_file_path:
+        ai_result_json['cv_file_path'] = cv_file_path
 
     payload = {
         "name": name,
@@ -172,6 +177,43 @@ def get_matches_for_student(student_id: str, user_id: str) -> list:
     except Exception as e:
         print(f"Error getting matches: {e}")
         return []
+
+
+def delete_old_matches_for_user(user_id: str, keep_student_id: str) -> bool:
+    """
+    Delete all matches for a user EXCEPT for the specified student profile.
+    This is useful when creating a new profile to avoid showing matches from old profiles.
+    
+    Args:
+        user_id: UUID of the authenticated user
+        keep_student_id: Student ID to keep matches for (don't delete these)
+        
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    try:
+        # Get all student IDs for this user
+        all_profiles = get_student_profiles_by_user(user_id)
+        old_student_ids = [p['id'] for p in all_profiles if p['id'] != keep_student_id]
+        
+        if not old_student_ids:
+            # No old profiles to clean
+            return True
+        
+        # Delete matches for each old profile
+        for student_id in old_student_ids:
+            try:
+                get_client().table("matches").delete().eq("student_id", student_id).execute()
+                print(f"Deleted matches for old student profile: {student_id}")
+            except Exception as e:
+                print(f"Error deleting matches for student {student_id}: {e}")
+        
+        return True
+        
+    except Exception as e:
+        print(f"Error deleting old matches: {e}")
+        return False
+
 
 def update_student_profile_data(student_id: str, updated_data: Dict[str, Any], user_id: str) -> bool:
     """

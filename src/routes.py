@@ -144,9 +144,12 @@ def init_routes(app):
     def upload_profile():
         """Handle profile upload (CV PDF and optional audio brain dump)"""
         import tempfile
+        import shutil
+        from datetime import datetime
         
         cv_path = None
         audio_path = None
+        cv_permanent_path = None
         
         try:
             # Check if CV file is present
@@ -202,9 +205,23 @@ def init_routes(app):
             # Get current user
             user = get_current_user()
             
+            # Save PDF permanently in uploads/cvs/user_id/
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            user_cv_dir = os.path.join('uploads', 'cvs', user['id'])
+            os.makedirs(user_cv_dir, exist_ok=True)
+            cv_permanent_filename = f"{timestamp}_{cv_filename}"
+            cv_permanent_path = os.path.join(user_cv_dir, cv_permanent_filename)
+            
+            # Copy file to permanent location
+            shutil.copy2(cv_path, cv_permanent_path)
+            print(f"CV saved permanently at: {cv_permanent_path}")
+            
             # Analyze profile with either audio or text brain dump
             # Returns (profile_dict, cv_raw_text) tuple
             result, cv_raw_text = analyze_profile(cv_path, audio_path, brain_dump_text)
+            
+            # Add CV file path to result
+            result['cv_file_path'] = cv_permanent_path
             
             # Clean up temporary files immediately after processing
             try:
@@ -215,13 +232,20 @@ def init_routes(app):
             except Exception as cleanup_error:
                 print(f"Warning: Failed to cleanup temp files: {cleanup_error}")
 
-            # Persist result to Supabase with user_id + raw texts
+            # Persist result to Supabase with user_id + raw texts + cv_file_path
             saved_row = save_student_profile(
                 result, 
                 user_id=user['id'] if user else None,
                 cv_raw_text=cv_raw_text,
-                brain_dump_text=brain_dump_text or ""
+                brain_dump_text=brain_dump_text or "",
+                cv_file_path=cv_permanent_path
             )
+            
+            # Clean up matches from old profiles to avoid mixing results
+            from src.services.db import delete_old_matches_for_user
+            delete_old_matches_for_user(user['id'], saved_row['id'])
+            print(f"Cleaned up old matches for user {user['id']}, keeping matches for profile {saved_row['id']}")
+            
             session["student_row"] = saved_row
             
             # Store result in session for results page
@@ -271,9 +295,12 @@ def init_routes(app):
     @app.route('/profile/edit/<student_id>', methods=['GET', 'POST'])
     @login_required
     def edit_profile(student_id):
-        """Edit profile (top_skills and ambitions)"""
+        """Edit profile (top_skills, ambitions, and optionally CV)"""
         try:
             from src.services.db import get_student_profile_by_id, update_student_profile_data
+            from src.services.ai_agent import GeminiAgent
+            import os
+            from werkzeug.utils import secure_filename
             
             user = get_current_user()
             
@@ -296,8 +323,78 @@ def init_routes(app):
                 current_profile_data['top_skills'] = top_skills
                 current_profile_data['ambitions'] = ambitions
 
-                # Call update service
-                if update_student_profile_data(student_id, current_profile_data, user['id']):
+                # Handle CV upload (optional)
+                cv_raw_text = profile.get('cv_raw_text', '')  # Keep existing by default
+                cv_permanent_path = profile.get('profile_data', {}).get('cv_file_path', '')
+                cv_file = request.files.get('cv_file')
+                
+                if cv_file and cv_file.filename:
+                    # Validate file
+                    if not cv_file.filename.endswith('.pdf'):
+                        flash("Solo se permiten archivos PDF.", "error")
+                        return redirect(url_for('edit_profile', student_id=student_id))
+                    
+                    # Save file temporarily
+                    filename = secure_filename(cv_file.filename)
+                    temp_cv_path = os.path.join('uploads', f"temp_{user['id']}_{filename}")
+                    os.makedirs('uploads', exist_ok=True)
+                    cv_file.save(temp_cv_path)
+                    
+                    try:
+                        # Extract text from new CV
+                        agent = GeminiAgent()
+                        cv_raw_text = agent.extract_cv_text(temp_cv_path)
+                        print(f"New CV extracted: {len(cv_raw_text)} chars")
+                        
+                        # Save PDF permanently BEFORE deleting temp file
+                        from datetime import datetime
+                        import shutil
+                        
+                        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+                        user_cv_dir = os.path.join('uploads', 'cvs', user['id'])
+                        os.makedirs(user_cv_dir, exist_ok=True)
+                        cv_filename_secure = secure_filename(cv_file.filename)
+                        cv_permanent_filename = f"{timestamp}_{cv_filename_secure}"
+                        cv_permanent_path = os.path.join(user_cv_dir, cv_permanent_filename)
+                        
+                        # Copy temp file to permanent location
+                        shutil.copy2(temp_cv_path, cv_permanent_path)
+                        print(f"CV updated and saved at: {cv_permanent_path}")
+                        
+                    except Exception as e:
+                        print(f"Error extracting/saving CV: {e}")
+                        import traceback
+                        traceback.print_exc()
+                        flash("Error al procesar el CV. Inténtalo de nuevo.", "error")
+                    finally:
+                        # Clean up temp file
+                        if os.path.exists(temp_cv_path):
+                            os.remove(temp_cv_path)
+
+                # Call update service with new CV text (if updated)
+                from src.services.db import _get_supabase_client
+                supabase = _get_supabase_client()
+                
+                # Add cv_file_path to profile_data
+                if cv_permanent_path:
+                    current_profile_data['cv_file_path'] = cv_permanent_path
+                
+                update_data = {
+                    'profile_data': current_profile_data,
+                    'cv_raw_text': cv_raw_text
+                }
+                
+                result = supabase.table('students').update(update_data).eq('id', student_id).eq('user_id', user['id']).execute()
+                
+                if result.data:
+                    # If CV was updated, clear old matches since profile has changed significantly
+                    if cv_file and cv_file.filename:
+                        try:
+                            supabase.table('matches').delete().eq('student_id', student_id).execute()
+                            print(f"Cleared matches for updated profile: {student_id}")
+                        except Exception as e:
+                            print(f"Error clearing matches after profile update: {e}")
+                    
                     flash("Perfil actualizado correctamente.", "success")
                     return redirect(url_for('profile'))
                 else:
@@ -308,8 +405,99 @@ def init_routes(app):
             
         except Exception as e:
             print(f"Error in edit_profile: {e}")
+            import traceback
+            traceback.print_exc()
             flash("Ocurrió un error inesperado.", "error")
             return redirect(url_for('profile'))
+
+    @app.route('/cv/<student_id>')
+    @login_required
+    def serve_cv(student_id):
+        """Serve CV PDF file"""
+        try:
+            from src.services.db import get_student_profile_by_id
+            from flask import send_file
+            
+            user = get_current_user()
+            
+            # Verify ownership
+            profile = get_student_profile_by_id(student_id, user['id'])
+            if not profile:
+                return "CV no encontrado o no tienes permiso", 404
+            
+            # Get CV file path from profile_data
+            cv_file_path = profile.get('profile_data', {}).get('cv_file_path')
+            
+            if not cv_file_path or not os.path.exists(cv_file_path):
+                return "CV no disponible", 404
+            
+            # Serve the PDF file
+            return send_file(cv_file_path, mimetype='application/pdf')
+            
+        except Exception as e:
+            print(f"Error serving CV: {e}")
+            import traceback
+            traceback.print_exc()
+            return "Error al cargar CV", 500
+
+    @app.route('/cv/delete/<student_id>', methods=['POST'])
+    @login_required
+    def delete_cv(student_id):
+        """Delete CV file and clear from database"""
+        try:
+            from src.services.db import get_student_profile_by_id, _get_supabase_client
+            
+            user = get_current_user()
+            
+            # Verify ownership
+            profile = get_student_profile_by_id(student_id, user['id'])
+            if not profile:
+                flash("No tienes permiso para eliminar este CV.", "error")
+                return redirect(url_for('profile'))
+            
+            # Get CV file path
+            cv_file_path = profile.get('profile_data', {}).get('cv_file_path')
+            
+            # Delete physical file if exists
+            if cv_file_path and os.path.exists(cv_file_path):
+                try:
+                    os.remove(cv_file_path)
+                    print(f"CV file deleted: {cv_file_path}")
+                except Exception as e:
+                    print(f"Error deleting file: {e}")
+            
+            # Update database: remove cv_file_path from profile_data and clear cv_raw_text
+            current_profile_data = profile.get('profile_data', {})
+            if 'cv_file_path' in current_profile_data:
+                del current_profile_data['cv_file_path']
+            
+            supabase = _get_supabase_client()
+            update_data = {
+                'profile_data': current_profile_data,
+                'cv_raw_text': ''
+            }
+            
+            result = supabase.table('students').update(update_data).eq('id', student_id).eq('user_id', user['id']).execute()
+            
+            # Delete all matches for this profile since CV is being removed
+            if result.data:
+                try:
+                    supabase.table('matches').delete().eq('student_id', student_id).execute()
+                    print(f"Deleted all matches for student profile: {student_id}")
+                except Exception as e:
+                    print(f"Error deleting matches: {e}")
+                
+                flash("CV eliminado correctamente.", "success")
+            else:
+                flash("Error al eliminar el CV de la base de datos.", "error")
+                
+        except Exception as e:
+            print(f"Error deleting CV: {e}")
+            import traceback
+            traceback.print_exc()
+            flash("Ocurrió un error al eliminar el CV.", "error")
+        
+        return redirect(url_for('profile'))
 
     @app.route('/dashboard/<student_id>')
 
@@ -335,6 +523,35 @@ def init_routes(app):
         except Exception as e:
             return jsonify({'error': str(e)}), 500
 
+    @app.route('/matches/clear/<student_id>', methods=['POST'])
+    @login_required
+    def clear_matches_history(student_id):
+        """Clear all matches for a student profile"""
+        try:
+            from src.services.db import get_student_profile_by_id, _get_supabase_client
+            
+            user = get_current_user()
+            
+            # Verify ownership
+            profile = get_student_profile_by_id(student_id, user['id'])
+            if not profile:
+                flash("No tienes permiso para borrar este historial.", "error")
+                return redirect(url_for('profile'))
+            
+            # Delete all matches for this student
+            supabase = _get_supabase_client()
+            result = supabase.table('matches').delete().eq('student_id', student_id).execute()
+            
+            print(f"Cleared all matches for student {student_id}")
+            flash("Historial de oportunidades eliminado correctamente.", "success")
+                
+        except Exception as e:
+            print(f"Error clearing matches: {e}")
+            import traceback
+            traceback.print_exc()
+            flash("Ocurrió un error al eliminar el historial.", "error")
+        
+        return redirect(url_for('dashboard', student_id=student_id))
 
     # === RUTAS DE PAGO Y SUSCRIPCIÓN ===
 
@@ -441,7 +658,7 @@ def init_routes(app):
                     # Ya alcanzó el límite -> Fake Door Upgrade
                     return redirect(url_for('upgrade', student_id=student_id))
                 
-                limit = 20 # Usuario Gratis: 20 búsquedas por día
+                limit = 3 # Limitar a 3 oportunidades por búsqueda
             # ------------------------
 
             find_and_save_matches(student_id, num_results=limit)
