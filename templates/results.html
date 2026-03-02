@@ -5,8 +5,95 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Novo - Resultados del Análisis</title>
     {% include 'base_styles.html' %}
+    <style>
+        .search-progress-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255, 255, 255, 0.97);
+            backdrop-filter: blur(8px);
+            z-index: 9999;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .search-progress-overlay.active {
+            display: flex;
+        }
+        
+        .progress-spinner {
+            width: 80px;
+            height: 80px;
+            border: 10px solid rgba(99, 102, 241, 0.1);
+            border-top-color: #6366f1;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 32px;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .progress-bar-container {
+            width: 320px;
+            height: 8px;
+            background: #e2e8f0;
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 24px auto 0;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.06);
+        }
+        
+        .progress-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #6366f1, #8b5cf6, #10b981);
+            width: 0%;
+            animation: progress-animation 20s ease-out forwards;
+            box-shadow: 0 0 20px rgba(99, 102, 241, 0.4);
+        }
+        
+        @keyframes progress-animation {
+            0% { width: 0%; }
+            5% { width: 15%; }
+            15% { width: 30%; }
+            30% { width: 50%; }
+            50% { width: 68%; }
+            70% { width: 80%; }
+            85% { width: 90%; }
+            95% { width: 96%; }
+            100% { width: 98%; }
+        }
+        
+        .progress-text {
+            font-size: 24px;
+            font-weight: 700;
+            color: #1e293b;
+            margin-bottom: 12px;
+        }
+        
+        .progress-subtext {
+            font-size: 16px;
+            color: #64748b;
+        }
+    </style>
 </head>
 <body class="bg-novo-bg min-h-screen">
+    <!-- Search Progress Overlay -->
+    <div class="search-progress-overlay" id="searchProgressOverlay">
+        <div style="text-align: center; display: flex; flex-direction: column; align-items: center;">
+            <div class="progress-spinner"></div>
+            <div class="progress-text">Buscando oportunidades...</div>
+            <div class="progress-subtext">Analizando miles de candidatos en todo el mundo</div>
+            <div class="progress-bar-container">
+                <div class="progress-bar-fill"></div>
+            </div>
+        </div>
+    </div>
     <!-- Floating Background Elements -->
     <div class="fixed inset-0 overflow-hidden pointer-events-none z-0">
         <div class="absolute top-20 right-20 w-80 h-80 bg-gradient-to-br from-emerald-200/30 to-teal-200/30 rounded-full blur-3xl animate-float"></div>
@@ -211,6 +298,12 @@
             
             // Cambiar texto
             text.textContent = 'Buscando oportunidades...';
+            
+            // Mostrar overlay de progreso
+            const overlay = document.getElementById('searchProgressOverlay');
+            if (overlay) {
+                overlay.classList.add('active');
+            }
             
             // Redireccionar
             window.location.href = url;
